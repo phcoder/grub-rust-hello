@@ -1,5 +1,3 @@
-#![feature(extern_types)]
-
 extern crate alloc;
 
 use alloc::vec::Vec;
@@ -9,6 +7,7 @@ use core::alloc::{GlobalAlloc, Layout};
 use core::ffi::c_char;
 use core::ffi::c_int;
 use core::ffi::c_void;
+use core::fmt::{self, Write};
 
 use alloc::ffi::CString;
 use core::ffi::CStr;
@@ -21,7 +20,7 @@ extern "C" {
     pub fn grub_free(ptr: *mut u8);
     pub fn grub_register_command_prio (name: *const c_char,
 				       func: fn (cmd: *const GrubCommand,
-						 argc: c_int, argv: *const *const c_char) ->err_t,
+						 argc: c_int, argv: *const *const c_char) ->ErrT,
 				       summary: *const c_char,
 				       description: *const c_char,
 				       prio: c_int) -> *mut GrubCommand;
@@ -37,7 +36,7 @@ pub extern "C" fn strlen(s: *const c_char) -> usize {
 
 // TODO: Use code generation?
 #[repr(C)]
-pub struct GrubCommand {
+struct GrubCommand {
     next: *mut GrubCommand,
     prev: *mut *mut GrubCommand,
     name: *const c_char,
@@ -49,8 +48,7 @@ pub struct GrubCommand {
     data: *const c_void,
 }
 
-pub type GrubCommandPtr = *const GrubCommand;
-pub type err_t = u32;
+pub type ErrT = u32;
 
 struct GrubAllocator;
 
@@ -59,7 +57,7 @@ unsafe impl GlobalAlloc for GrubAllocator {
         return grub_malloc(layout.size());
     }
 
-    unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
+    unsafe fn dealloc(&self, ptr: *mut u8, _layout: Layout) {
         grub_free(ptr);
     }
 }
@@ -84,28 +82,59 @@ fn panic(info: &PanicInfo) -> ! {
 }
 
 fn cmd_callback (cmd: *const GrubCommand,
-		 argc: c_int, argv: *const *const c_char) -> err_t {
+		 argc: c_int, argv: *const *const c_char) -> ErrT {
     let mut argv_vec: Vec<&str> = vec![];
     for i in 0..argc {
 	argv_vec.push(unsafe { CStr::from_ptr(*argv.add(i as usize)) }.to_str().unwrap());
     }
-
-    return unsafe{(*((*cmd).data as *const fn (argc: usize, argv: &[&str]) -> err_t))} (argc as usize, &argv_vec);
+    return f (argc as usize, &argv_vec);
 }
 
-pub fn register_command (name: &str, cb: fn (argc: usize, argv: &[&str]) -> err_t,
-			 summary: &str, description: &str) -> GrubCommandPtr {
-    unsafe {
-	let cmd = grub_register_command_prio (CString::new(name).unwrap().as_ptr(),
-					      cmd_callback,
-					      CString::new(summary).unwrap().as_ptr(),
-					      CString::new(description).unwrap().as_ptr(),
-					      0);
-	(*cmd).data = cb as *mut c_void;
-	return cmd;
+pub struct Command {
+    name: CString,
+    summary: CString,
+    description: CString,
+    cmd: *mut GrubCommand,
+}
+
+static mut commands: Vec<Command> = vec![];
+
+impl Command {
+    pub fn register(name: &str, cb: fn (argc: usize, argv: &[&str]) -> ErrT,
+		    summary: &str, description: &str) {
+	let mut ret = Command {
+	    name: CString::new(name).unwrap(),
+	    summary: CString::new(summary).unwrap(),
+	    description: CString::new(description).unwrap(),
+	    cmd: core::ptr::null_mut(),
+	};
+	unsafe {
+	    ret.cmd = grub_register_command_prio (ret.name.as_ptr(),
+						  cmd_callback,
+						  ret.summary.as_ptr(),
+						  ret.description.as_ptr(),
+						  0);
+	    (*ret.cmd).data = cb as *mut c_void;
+	    commands.push(ret);
+	}
+    }
+
+    pub fn unregister_all() {
+	unsafe {
+	    for cmd in commands.iter() {
+		grub_unregister_command(cmd.cmd);
+	    }
+	}
     }
 }
 
-pub fn unregister_command (cmd: GrubCommandPtr) {
-    unsafe { grub_unregister_command(cmd); }
+
+struct PutsWriter;
+
+impl Write for PutsWriter {
+    fn write_str(&mut self, s: &str) -> fmt::Result {
+        xputs(s);
+        Ok(())
+    }
 }
+
