@@ -1,0 +1,6 @@
+[build]
+target = "i586-unknown-linux-gnu"
+rustflags = ["-Zregparm=3"]
+
+[unstable]
+build-std = ["core,alloc,panic_abort"]

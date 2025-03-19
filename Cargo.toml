@@ -1,0 +1,23 @@
+[package]
+authors = ["Vladimir Serbinenko <phcoder@gmail.com>"]
+edition = "2018"
+readme = "README.md"
+name = "grub-rust-hello"
+version = "0.1.0"
+
+[dependencies]
+
+[profile.release]
+codegen-units = 1 # better optimizations
+debug = true # symbols are nice and they don't increase the size on Flash
+lto = true # better optimizations
+panic="abort"
+
+[profile.dev]
+codegen-units = 1 # better optimizations
+debug = true # symbols are nice and they don't increase the size on Flash
+lto = true # better optimizations
+panic="abort"
+
+[lib]
+crate-type = ["lib", "cdylib"]
