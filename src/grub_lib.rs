@@ -31,6 +31,13 @@ macro_rules! println {
     }};
 }
 
+#[macro_export]
+macro_rules! dprintln {
+    ($cond:expr, $($args: expr),*) => {
+	$crate::grub_lib::real_dprintln(file!(), line!(), $cond, format_args_nl!($($args)*));
+    }
+}
+
 extern "C" {
     static grub_xputs: extern "C" fn(stri: *const c_char);
     fn grub_abort();
@@ -44,6 +51,8 @@ extern "C" {
 				   prio: c_int) -> *mut GrubCommand;
     fn grub_strlen (s: *const c_char) -> usize;
     fn grub_unregister_command (cmd: *const GrubCommand);
+    fn grub_refresh ();
+    fn grub_debug_enabled(cond: *const c_char) -> bool;
 }
 
 #[no_mangle]
@@ -160,4 +169,15 @@ impl Write for PutsWriter {
 pub fn print_fmt(args: Arguments<'_>) {
     let mut w = PutsWriter;
     let _ = fmt::write(&mut w, args);
+}
+
+pub fn real_dprintln(file: &str, line: u32, cond: &str, args: Arguments<'_>) {
+    let c_cond = CString::new(cond).unwrap();
+
+    if !unsafe { grub_debug_enabled (c_cond.as_ptr()) } {
+	return;
+    }
+    print!("{file}:{line}:{cond}: ");
+    print_fmt(args);
+    unsafe { grub_refresh (); }
 }

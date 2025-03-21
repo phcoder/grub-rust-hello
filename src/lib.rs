@@ -16,6 +16,7 @@ pub static GRUB_LICENSE: [u8; 15] = *b"LICENSE=GPLv3+\0";
 
 pub fn rust_hello (argv: &[&str]) -> grub_lib::ErrT {
     println!("Hello, world argv={argv:?}");
+    dprintln!("rust", "hello from debug");
     return 0;
 }
 
