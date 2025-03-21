@@ -2,6 +2,7 @@
 #![no_main]
 #![feature(extern_types)]
 #![feature(rustc_attrs)]
+#![feature(format_args_nl)]
 
 mod grub_lib;
 
@@ -14,7 +15,7 @@ pub static GRUB_LICENSE: [u8; 15] = *b"LICENSE=GPLv3+\0";
 
 
 pub fn rust_hello (argv: &[&str]) -> grub_lib::ErrT {
-    print!("Hello, world argv={argv:?}\n");
+    println!("Hello, world argv={argv:?}");
     return 0;
 }
 

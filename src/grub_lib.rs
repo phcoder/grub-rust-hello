@@ -149,3 +149,14 @@ macro_rules! print {
         $crate::grub_lib::print_fmt(format_args!($($arg)*));
     }};
 }
+
+#[macro_export]
+#[cfg_attr(not(test), rustc_diagnostic_item = "println_macro")]
+macro_rules! println {
+    () => {
+        $crate::print!("\n")
+    };
+    ($($arg:tt)*) => {{
+        $crate::grub_lib::print_fmt(format_args_nl!($($arg)*));
+    }};
+}
