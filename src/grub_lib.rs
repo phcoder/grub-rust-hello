@@ -12,6 +12,25 @@ use alloc::ffi::CString;
 use core::ffi::CStr;
 use core::panic::PanicInfo;
 
+#[macro_export]
+#[cfg_attr(not(test), rustc_diagnostic_item = "print_macro")]
+macro_rules! print {
+    ($($arg:tt)*) => {{
+        $crate::grub_lib::print_fmt(format_args!($($arg)*));
+    }};
+}
+
+#[macro_export]
+#[cfg_attr(not(test), rustc_diagnostic_item = "println_macro")]
+macro_rules! println {
+    () => {
+        $crate::print!("\n")
+    };
+    ($($arg:tt)*) => {{
+        $crate::grub_lib::print_fmt(format_args_nl!($($arg)*));
+    }};
+}
+
 extern "C" {
     static grub_xputs: extern "C" fn(stri: *const c_char);
     fn grub_abort();
@@ -74,8 +93,9 @@ pub fn xputs(val: &str) {
 
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
+    println!("Rust runtime panicked {info:?}");
     unsafe {
-	grub_abort(); // TODO: Use grub_fatal and better error message
+	grub_abort();
     }
     loop{}
 }
@@ -140,23 +160,4 @@ impl Write for PutsWriter {
 pub fn print_fmt(args: Arguments<'_>) {
     let mut w = PutsWriter;
     let _ = fmt::write(&mut w, args);
-}
-
-#[macro_export]
-#[cfg_attr(not(test), rustc_diagnostic_item = "print_macro")]
-macro_rules! print {
-    ($($arg:tt)*) => {{
-        $crate::grub_lib::print_fmt(format_args!($($arg)*));
-    }};
-}
-
-#[macro_export]
-#[cfg_attr(not(test), rustc_diagnostic_item = "println_macro")]
-macro_rules! println {
-    () => {
-        $crate::print!("\n")
-    };
-    ($($arg:tt)*) => {{
-        $crate::grub_lib::print_fmt(format_args_nl!($($arg)*));
-    }};
 }
