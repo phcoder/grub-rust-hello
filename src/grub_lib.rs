@@ -2,6 +2,8 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 use alloc::vec;
+use alloc::string::String;
+use alloc::string::ToString;
 use core::alloc::{GlobalAlloc, Layout};
 use core::ffi::c_char;
 use core::ffi::c_int;
@@ -38,6 +40,13 @@ macro_rules! dprintln {
     }
 }
 
+#[macro_export]
+macro_rules! eformat {
+    ($num:expr, $($args: expr),*) => {
+	$crate::grub_lib::GrubError::new_fmt($num, format_args!($($args)*))
+    }
+}
+
 extern "C" {
     static grub_xputs: extern "C" fn(stri: *const c_char);
     fn grub_abort();
@@ -45,7 +54,7 @@ extern "C" {
     fn grub_free(ptr: *mut u8);
     fn grub_register_command_prio (name: *const c_char,
 				   func: extern "C" fn (cmd: *const GrubCommand,
-							argc: c_int, argv: *const *const c_char) ->ErrT,
+							argc: c_int, argv: *const *const c_char) -> u32,
 				   summary: *const c_char,
 				   description: *const c_char,
 				   prio: c_int) -> *mut GrubCommand;
@@ -53,6 +62,7 @@ extern "C" {
     fn grub_unregister_command (cmd: *const GrubCommand);
     fn grub_refresh ();
     fn grub_debug_enabled(cond: *const c_char) -> bool;
+    fn grub_error (n: u32, fmt: *const c_char, args: ...) -> u32;
 }
 
 #[no_mangle]
@@ -75,7 +85,76 @@ struct GrubCommand {
     data: *const c_void,
 }
 
-pub type ErrT = u32;
+// TODO: Use codegen here
+pub enum ErrT {
+    None = 0,
+    TestFailure = 1,
+    BadModule = 2,
+    OutOfMemory = 3,
+    BadFileType = 4,
+    FileNotFound = 5,
+    FileReadError = 6,
+    BadFilename = 7,
+    UnknownFs = 8,
+    BadFs = 9,
+    BadNumber = 10,
+    OutOfRange = 11,
+    UnknownDevice = 12,
+    BadDevice = 13,
+    ReadError = 14,
+    WriteError = 15,
+    UnknownCommand = 16,
+    InvalidCommand = 17,
+    BadArgument = 18,
+    BadPartTable = 19,
+    UnknownOs = 20,
+    BadOs = 21,
+    NoKernel = 22,
+    BadFont = 23,
+    NotImplementedYet = 24,
+    SymlinkLoop = 25,
+    BadCompressedData = 26,
+    Menu = 27,
+    Timeout = 28,
+    Io = 29,
+    AccessDenied = 30,
+    Extractor = 31,
+    NetBadAddress = 32,
+    NetRouteLoop = 33,
+    NetNoRoute = 34,
+    NetNoAnswer = 35,
+    NetNoCard = 36,
+    Wait = 37,
+    Bug = 38,
+    NetPortClosed = 39,
+    NetInvalidResponse = 40,
+    NetUnknownError = 41,
+    NetPacketTooBig = 42,
+    NetNoDomain = 43,
+    Eof = 44,
+    BadSignature = 45,
+    BadFirmware = 46,
+    StillReferenced = 47,
+    RecursionDepth = 48,
+}
+
+pub struct GrubError {
+    errno: ErrT,
+    errmsg: String,
+}
+
+impl GrubError {
+    pub fn new(num: ErrT, msg: &str) -> Self {
+	return GrubError{errno: num, errmsg: msg.to_string()};
+    }
+
+    pub fn new_fmt(num: ErrT, args: Arguments<'_>) -> Self {
+	let mut w = StrWriter {output: "".to_string()};
+	let _ = fmt::write(&mut w, args);
+
+	return GrubError{errno: num, errmsg: w.output};
+    }
+}
 
 struct GrubAllocator;
 
@@ -110,13 +189,20 @@ fn panic(info: &PanicInfo) -> ! {
 }
 
 extern "C" fn cmd_callback (cmd: *const GrubCommand,
-			    argc: c_int, argv: *const *const c_char) -> ErrT {
+			    argc: c_int, argv: *const *const c_char) -> u32 {
     let mut argv_vec: Vec<&str> = vec![];
     for i in 0..argc {
 	argv_vec.push(unsafe { CStr::from_ptr(*argv.add(i as usize)) }.to_str().unwrap());
     }
-    let f = unsafe { *((&(*cmd).data) as *const _ as *const fn(&[&str]) -> ErrT) };
-    return f (&argv_vec);
+    let f = unsafe { *((&(*cmd).data) as *const _ as *const fn(&[&str]) -> Result<(), GrubError>) };
+    match f (&argv_vec) {
+	Ok(_) => { return 0; }
+	Err(e) => {
+	    let c_errmsg = CString::new(e.errmsg).unwrap();
+
+	    return unsafe {grub_error(e.errno as u32, CStr::from_bytes_until_nul(b"%s\0").unwrap().as_ptr(), c_errmsg.as_ptr())};
+	}
+    }
 }
 
 pub struct Command {
@@ -129,7 +215,7 @@ pub struct Command {
 static mut commands: Vec<Command> = vec![];
 
 impl Command {
-    pub fn register(name: &str, cb: fn (argv: &[&str]) -> ErrT,
+    pub fn register(name: &str, cb: fn (argv: &[&str]) -> Result<(), GrubError>,
 		    summary: &str, description: &str) {
 	let mut ret = Command {
 	    name: CString::new(name).unwrap(),
@@ -162,6 +248,17 @@ struct PutsWriter;
 impl Write for PutsWriter {
     fn write_str(&mut self, s: &str) -> fmt::Result {
         xputs(s);
+        Ok(())
+    }
+}
+
+struct StrWriter {
+    output: String,
+}
+
+impl Write for StrWriter {
+    fn write_str(&mut self, s: &str) -> fmt::Result {
+        self.output += s;
         Ok(())
     }
 }

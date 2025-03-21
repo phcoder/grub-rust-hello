@@ -14,16 +14,22 @@ pub static GRUB_MODNAME: [u8; 11] = *b"rust_hello\0";
 pub static GRUB_LICENSE: [u8; 15] = *b"LICENSE=GPLv3+\0";
 
 
-pub fn rust_hello (argv: &[&str]) -> grub_lib::ErrT {
+pub fn rust_hello (argv: &[&str]) -> Result<(), grub_lib::GrubError> {
     println!("Hello, world argv={argv:?}");
     dprintln!("hello", "hello from debug");
-    return 0;
+    return Ok(());
+}
+
+pub fn rust_err (argv: &[&str]) -> Result<(), grub_lib::GrubError> {
+    return Err(eformat!(grub_lib::ErrT::Io, "hello from error argv={argv:?}"));
 }
 
 #[no_mangle]
 pub extern "C" fn grub_mod_init() {
     grub_lib::Command::register("rust_hello", rust_hello,
 				"Rust hello", "Say hello from Rust.");
+    grub_lib::Command::register("rust_err", rust_err,
+				"Rust error", "Error out from Rust.");
 }
 
 #[no_mangle]
