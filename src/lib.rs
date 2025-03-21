@@ -1,6 +1,7 @@
 #![no_std]
 #![no_main]
 #![feature(extern_types)]
+#![feature(rustc_attrs)]
 
 mod grub_lib;
 
@@ -13,19 +14,12 @@ pub static GRUB_LICENSE: [u8; 15] = *b"LICENSE=GPLv3+\0";
 
 
 pub fn rust_hello (argv: &[&str]) -> grub_lib::ErrT {
-    grub_lib::xputs("Hello, world\n");
-    for arg in argv {
-	grub_lib::xputs(arg);
-	grub_lib::xputs(" ");
-    }
-    grub_lib::xputs("\n");
+    print!("Hello, world argv={argv:?}\n");
     return 0;
 }
 
 #[no_mangle]
 pub extern "C" fn grub_mod_init() {
-    grub_lib::xputs("Hello");
-
     grub_lib::Command::register("rust_hello", rust_hello,
 				"Rust hello", "Say hello from Rust.");
 }

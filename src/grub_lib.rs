@@ -6,7 +6,7 @@ use core::alloc::{GlobalAlloc, Layout};
 use core::ffi::c_char;
 use core::ffi::c_int;
 use core::ffi::c_void;
-use core::fmt::{self, Write};
+use core::fmt::{self, Arguments, Write};
 
 use alloc::ffi::CString;
 use core::ffi::CStr;
@@ -128,7 +128,6 @@ impl Command {
     }
 }
 
-
 struct PutsWriter;
 
 impl Write for PutsWriter {
@@ -138,3 +137,15 @@ impl Write for PutsWriter {
     }
 }
 
+pub fn print_fmt(args: Arguments<'_>) {
+    let mut w = PutsWriter;
+    let _ = fmt::write(&mut w, args);
+}
+
+#[macro_export]
+#[cfg_attr(not(test), rustc_diagnostic_item = "print_macro")]
+macro_rules! print {
+    ($($arg:tt)*) => {{
+        $crate::grub_lib::print_fmt(format_args!($($arg)*));
+    }};
+}
