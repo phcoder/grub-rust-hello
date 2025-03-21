@@ -2,7 +2,6 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 use alloc::vec;
-use alloc::string::String;
 use core::alloc::{GlobalAlloc, Layout};
 use core::ffi::c_char;
 use core::ffi::c_int;
@@ -15,17 +14,17 @@ use core::panic::PanicInfo;
 
 extern "C" {
     static grub_xputs: extern "C" fn(stri: *const c_char);
-    pub fn grub_abort();
-    pub fn grub_malloc(sz: usize) -> *mut u8;
-    pub fn grub_free(ptr: *mut u8);
-    pub fn grub_register_command_prio (name: *const c_char,
-				       func: fn (cmd: *const GrubCommand,
-						 argc: c_int, argv: *const *const c_char) ->ErrT,
-				       summary: *const c_char,
-				       description: *const c_char,
-				       prio: c_int) -> *mut GrubCommand;
-    pub fn grub_strlen (s: *const c_char) -> usize;
-    pub fn grub_unregister_command (cmd: *const GrubCommand);
+    fn grub_abort();
+    fn grub_malloc(sz: usize) -> *mut u8;
+    fn grub_free(ptr: *mut u8);
+    fn grub_register_command_prio (name: *const c_char,
+				   func: extern "C" fn (cmd: *const GrubCommand,
+							argc: c_int, argv: *const *const c_char) ->ErrT,
+				   summary: *const c_char,
+				   description: *const c_char,
+				   prio: c_int) -> *mut GrubCommand;
+    fn grub_strlen (s: *const c_char) -> usize;
+    fn grub_unregister_command (cmd: *const GrubCommand);
 }
 
 #[no_mangle]
@@ -81,13 +80,14 @@ fn panic(info: &PanicInfo) -> ! {
     loop{}
 }
 
-fn cmd_callback (cmd: *const GrubCommand,
-		 argc: c_int, argv: *const *const c_char) -> ErrT {
+extern "C" fn cmd_callback (cmd: *const GrubCommand,
+			    argc: c_int, argv: *const *const c_char) -> ErrT {
     let mut argv_vec: Vec<&str> = vec![];
     for i in 0..argc {
 	argv_vec.push(unsafe { CStr::from_ptr(*argv.add(i as usize)) }.to_str().unwrap());
     }
-    return f (argc as usize, &argv_vec);
+    let f = unsafe { *((&(*cmd).data) as *const _ as *const fn(&[&str]) -> ErrT) };
+    return f (&argv_vec);
 }
 
 pub struct Command {
@@ -100,7 +100,7 @@ pub struct Command {
 static mut commands: Vec<Command> = vec![];
 
 impl Command {
-    pub fn register(name: &str, cb: fn (argc: usize, argv: &[&str]) -> ErrT,
+    pub fn register(name: &str, cb: fn (argv: &[&str]) -> ErrT,
 		    summary: &str, description: &str) {
 	let mut ret = Command {
 	    name: CString::new(name).unwrap(),

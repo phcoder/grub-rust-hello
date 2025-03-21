@@ -6,15 +6,19 @@ mod grub_lib;
 
 #[link_section = ".modname"]
 #[no_mangle]
-pub static GRUB_MODNAME: [u8; 11] = [b'r', b'u', b's', b't', b'_', b'h', b'e',
-				     b'l', b'l', b'o', b'\0'];
+pub static GRUB_MODNAME: [u8; 11] = *b"rust_hello\0";
 #[link_section = ".module_license"]
 #[no_mangle]
-pub static GRUB_LICENSE: [u8; 15] = [b'L', b'I', b'C', b'E', b'N', b'S', b'E', b'=', b'G', b'P', b'L', b'v', b'3', b'+', b'\0'];
+pub static GRUB_LICENSE: [u8; 15] = *b"LICENSE=GPLv3+\0";
 
 
-pub fn rust_hello (_argc: usize, _argv: &[&str]) -> grub_lib::ErrT {
+pub fn rust_hello (argv: &[&str]) -> grub_lib::ErrT {
     grub_lib::xputs("Hello, world\n");
+    for arg in argv {
+	grub_lib::xputs(arg);
+	grub_lib::xputs(" ");
+    }
+    grub_lib::xputs("\n");
     return 0;
 }
 
