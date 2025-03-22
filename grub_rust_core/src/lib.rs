@@ -22,6 +22,13 @@ use core::ffi::CStr;
 use core::panic::PanicInfo;
 use core::num::TryFromIntError;
 
+#[link_section = ".modname"]
+#[no_mangle]
+pub static GRUB_MODNAME: [u8; 5] = *b"rust\0";
+#[link_section = ".module_license"]
+#[no_mangle]
+pub static GRUB_LICENSE: [u8; 15] = *b"LICENSE=GPLv3+\0";
+
 extern "C" {
     static grub_xputs: extern "C" fn(stri: *const c_char);
     fn grub_abort();

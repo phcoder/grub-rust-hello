@@ -19,10 +19,10 @@ use grub::eformat;
 
 #[link_section = ".modname"]
 #[no_mangle]
-pub static GRUB_MODNAME: [u8; 11] = *b"rust_hello\0";
+pub static GRUB_MODNAME_EXAMPLE: [u8; 11] = *b"rust_hello\0";
 #[link_section = ".module_license"]
 #[no_mangle]
-pub static GRUB_LICENSE: [u8; 15] = *b"LICENSE=GPLv3+\0";
+pub static GRUB_LICENSE_EXAMPLE: [u8; 15] = *b"LICENSE=GPLv3+\0";
 
 
 fn rust_hello (argv: &[&str]) -> Result<(), grub::GrubError> {
