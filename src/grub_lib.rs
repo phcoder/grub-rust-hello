@@ -13,6 +13,7 @@ use core::fmt::{self, Arguments, Write};
 use alloc::ffi::CString;
 use core::ffi::CStr;
 use core::panic::PanicInfo;
+use core::num::TryFromIntError;
 
 extern "C" {
     static grub_xputs: extern "C" fn(stri: *const c_char);
@@ -303,6 +304,12 @@ impl GrubError {
     }
 }
 
+impl From<TryFromIntError> for GrubError {
+    fn from(value: TryFromIntError) -> Self {
+	return eformat!(ErrT::OutOfRange, "error converting value: {value:?}")
+    }
+}
+
 struct GrubAllocator;
 
 unsafe impl GlobalAlloc for GrubAllocator {
@@ -426,7 +433,7 @@ pub fn real_dprintln(file: &str, line: u32, cond: &str, args: Arguments<'_>) {
     unsafe { grub_refresh (); }
 }
 
-struct File {
+pub struct File {
     file: *mut GrubFile,
 }
 
