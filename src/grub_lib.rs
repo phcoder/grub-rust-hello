@@ -14,6 +14,24 @@ use alloc::ffi::CString;
 use core::ffi::CStr;
 use core::panic::PanicInfo;
 
+extern "C" {
+    static grub_xputs: extern "C" fn(stri: *const c_char);
+    fn grub_abort();
+    fn grub_malloc(sz: usize) -> *mut u8;
+    fn grub_free(ptr: *mut u8);
+    fn grub_register_command_prio (name: *const c_char,
+				   func: extern "C" fn (cmd: *const GrubCommand,
+							argc: c_int, argv: *const *const c_char) -> u32,
+				   summary: *const c_char,
+				   description: *const c_char,
+				   prio: c_int) -> *mut GrubCommand;
+    fn grub_strlen (s: *const c_char) -> usize;
+    fn grub_unregister_command (cmd: *const GrubCommand);
+    fn grub_refresh ();
+    fn grub_debug_enabled(cond: *const c_char) -> bool;
+    fn grub_error (n: u32, fmt: *const c_char, args: ...) -> u32;
+}
+
 #[macro_export]
 #[cfg_attr(not(test), rustc_diagnostic_item = "print_macro")]
 macro_rules! print {
@@ -47,22 +65,18 @@ macro_rules! eformat {
     }
 }
 
-extern "C" {
-    static grub_xputs: extern "C" fn(stri: *const c_char);
-    fn grub_abort();
-    fn grub_malloc(sz: usize) -> *mut u8;
-    fn grub_free(ptr: *mut u8);
-    fn grub_register_command_prio (name: *const c_char,
-				   func: extern "C" fn (cmd: *const GrubCommand,
-							argc: c_int, argv: *const *const c_char) -> u32,
-				   summary: *const c_char,
-				   description: *const c_char,
-				   prio: c_int) -> *mut GrubCommand;
-    fn grub_strlen (s: *const c_char) -> usize;
-    fn grub_unregister_command (cmd: *const GrubCommand);
-    fn grub_refresh ();
-    fn grub_debug_enabled(cond: *const c_char) -> bool;
-    fn grub_error (n: u32, fmt: *const c_char, args: ...) -> u32;
+#[macro_export]
+macro_rules! format {
+    ($($args: expr),*) => {
+	$crate::grub_lib::format(format_args!($($args)*))
+    }
+}
+
+pub fn format(args: Arguments<'_>) -> String {
+    let mut w = StrWriter {output: "".to_string()};
+    let _ = fmt::write(&mut w, args);
+
+    return w.output;
 }
 
 #[no_mangle]
