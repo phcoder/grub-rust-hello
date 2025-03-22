@@ -2,4 +2,4 @@
 target = "i586-unknown-linux-gnu"
 
 [unstable]
-build-std = ["core,alloc,panic_abort"]
+build-std = ["core,alloc"]
