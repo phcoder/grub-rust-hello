@@ -5,13 +5,18 @@
 #![feature(format_args_nl)]
 #![feature(inherent_str_constructors)]
 
-mod grub_lib;
-
 extern crate alloc;
+extern crate grub;
 
 use alloc::string::ToString;
 use core::cmp::min;
 use core::convert::TryFrom;
+
+use alloc::format;
+
+use grub::dprintln;
+use grub::println;
+use grub::eformat;
 
 #[link_section = ".modname"]
 #[no_mangle]
@@ -21,14 +26,14 @@ pub static GRUB_MODNAME: [u8; 11] = *b"rust_hello\0";
 pub static GRUB_LICENSE: [u8; 15] = *b"LICENSE=GPLv3+\0";
 
 
-fn rust_hello (argv: &[&str]) -> Result<(), grub_lib::GrubError> {
+fn rust_hello (argv: &[&str]) -> Result<(), grub::GrubError> {
     println!("Hello, world argv={argv:?}");
     dprintln!("hello", "hello from debug");
     return Ok(());
 }
 
-fn rust_err (argv: &[&str]) -> Result<(), grub_lib::GrubError> {
-    return Err(eformat!(grub_lib::ErrT::Io, "hello from error argv={argv:?}"));
+fn rust_err (argv: &[&str]) -> Result<(), grub::GrubError> {
+    return Err(eformat!(grub::ErrT::Io, "hello from error argv={argv:?}"));
 }
 
 fn hexdump (start: u64, buf: &[u8])
@@ -88,11 +93,11 @@ fn hexdump (start: u64, buf: &[u8])
 }
 
 
-fn rust_hexdump (args: &[&str]) -> Result<(), grub_lib::GrubError> {
+fn rust_hexdump (args: &[&str]) -> Result<(), grub::GrubError> {
     let mut length = 256;
     let mut skip = 0;
 
-    let mut file = grub_lib::File::open(args[0], &grub_lib::FileType::Hexcat)?;
+    let mut file = grub::File::open(args[0], &grub::FileType::Hexcat)?;
 
     file.seek(skip);
 
@@ -119,15 +124,15 @@ fn rust_hexdump (args: &[&str]) -> Result<(), grub_lib::GrubError> {
 
 #[no_mangle]
 pub extern "C" fn grub_mod_init() {
-    grub_lib::Command::register("rust_hello", rust_hello,
+    grub::Command::register("rust_hello", rust_hello,
 				"Rust hello", "Say hello from Rust.");
-    grub_lib::Command::register("rust_err", rust_err,
+    grub::Command::register("rust_err", rust_err,
 				"Rust error", "Error out from Rust.");
-    grub_lib::Command::register("rust_hexdump", rust_hexdump,
+    grub::Command::register("rust_hexdump", rust_hexdump,
 				"Rust hexdump", "Hexdump a file from Rust.");
 }
 
 #[no_mangle]
 pub extern "C" fn grub_mod_fini() {
-    grub_lib::Command::unregister_all();
+    grub::Command::unregister_all();
 }

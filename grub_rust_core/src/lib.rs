@@ -1,3 +1,10 @@
+#![no_std]
+#![no_main]
+#![feature(extern_types)]
+#![feature(rustc_attrs)]
+#![feature(format_args_nl)]
+#![feature(inherent_str_constructors)]
+
 extern crate alloc;
 
 use alloc::vec::Vec;
@@ -45,7 +52,7 @@ extern "C" {
 #[cfg_attr(not(test), rustc_diagnostic_item = "print_macro")]
 macro_rules! print {
     ($($arg:tt)*) => {{
-        $crate::grub_lib::print_fmt(format_args!($($arg)*));
+        $crate::print_fmt(format_args!($($arg)*));
     }};
 }
 
@@ -56,36 +63,22 @@ macro_rules! println {
         $crate::print!("\n")
     };
     ($($arg:tt)*) => {{
-        $crate::grub_lib::print_fmt(format_args_nl!($($arg)*));
+        $crate::print_fmt(format_args_nl!($($arg)*));
     }};
 }
 
 #[macro_export]
 macro_rules! dprintln {
     ($cond:expr, $($args: expr),*) => {
-	$crate::grub_lib::real_dprintln(file!(), line!(), $cond, format_args_nl!($($args)*));
+	$crate::real_dprintln(file!(), line!(), $cond, format_args_nl!($($args)*));
     }
 }
 
 #[macro_export]
 macro_rules! eformat {
     ($num:expr, $($args: expr),*) => {
-	$crate::grub_lib::GrubError::new_fmt($num, format_args!($($args)*))
+	$crate::GrubError::new_fmt($num, format_args!($($args)*))
     }
-}
-
-#[macro_export]
-macro_rules! format {
-    ($($args: expr),*) => {
-	$crate::grub_lib::format(format_args!($($args)*))
-    }
-}
-
-pub fn format(args: Arguments<'_>) -> String {
-    let mut w = StrWriter {output: "".to_string()};
-    let _ = fmt::write(&mut w, args);
-
-    return w.output;
 }
 
 #[no_mangle]
