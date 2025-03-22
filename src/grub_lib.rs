@@ -440,7 +440,7 @@ impl File {
 	return Ok(File { file: ret });
     }
 
-    fn read(&mut self, buf: &mut [u8]) -> Result<usize, GrubError> {
+    pub fn read(&mut self, buf: &mut [u8]) -> Result<usize, GrubError> {
 	let ret = unsafe { grub_file_read(self.file, buf.as_mut_ptr() as *mut c_void, buf.len()) };
 	if ret < 0 {
 	    return Err(GrubError::from_env());
@@ -448,15 +448,15 @@ impl File {
 	return Ok(ret as usize);
     }
 
-    fn seek(&mut self, off: u64) {
+    pub fn seek(&mut self, off: u64) {
 	unsafe { grub_file_seek(self.file, off) };
     }
 
-    fn tell(&self) -> u64 {
+    pub fn tell(&self) -> u64 {
 	return unsafe { (*self.file).offset };
     }
 
-    fn size(&self) -> u64 {
+    pub fn size(&self) -> u64 {
 	return unsafe { (*self.file).size };
     }
 }
