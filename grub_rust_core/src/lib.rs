@@ -23,12 +23,8 @@ use core::ffi::CStr;
 use core::panic::PanicInfo;
 use core::num::TryFromIntError;
 
-#[unsafe(link_section = ".modname")]
-#[unsafe(no_mangle)]
-pub static GRUB_MODNAME: [u8; 5] = *b"rust\0";
 #[unsafe(link_section = ".module_license")]
-#[unsafe(no_mangle)]
-pub static GRUB_LICENSE: [u8; 15] = *b"LICENSE=GPLv3+\0";
+pub static LICENSE: [u8; 15] = *b"LICENSE=GPLv3+\0";
 
 unsafe extern "C" {
     static grub_xputs: extern "C" fn(stri: *const c_char);

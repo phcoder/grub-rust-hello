@@ -16,12 +16,8 @@ use grub::dprintln;
 use grub::println;
 use grub::eformat;
 
-#[unsafe(link_section = ".modname")]
-#[unsafe(no_mangle)]
-pub static GRUB_MODNAME_EXAMPLE: [u8; 11] = *b"rust_hello\0";
 #[unsafe(link_section = ".module_license")]
-#[unsafe(no_mangle)]
-pub static GRUB_LICENSE_EXAMPLE: [u8; 15] = *b"LICENSE=GPLv3+\0";
+pub static LICENSE: [u8; 15] = *b"LICENSE=GPLv3+\0";
 
 
 fn rust_hello (argv: &[&str]) -> Result<(), grub::GrubError> {
