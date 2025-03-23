@@ -11,6 +11,7 @@ use core::cmp::min;
 use core::convert::TryFrom;
 
 use alloc::format;
+use core::ffi::c_void;
 
 use grub::dprintln;
 use grub::println;
@@ -116,17 +117,23 @@ fn rust_hexdump (args: &[&str]) -> Result<(), grub::GrubError> {
     return Ok(());
 }
 
+static HELLO_CMD: grub::ModuleCell<grub::Command> = grub::ModuleCell::new();
+static ERR_CMD: grub::ModuleCell<grub::Command> = grub::ModuleCell::new();
+static HEXDUMP_CMD: grub::ModuleCell<grub::Command> = grub::ModuleCell::new();
+static MODULE: grub::ModuleRefHolder = grub::ModuleRefHolder::new();
+
 #[unsafe(no_mangle)]
-pub extern "C" fn grub_mod_init() {
-    grub::Command::register("rust_hello", rust_hello,
-				"Rust hello", "Say hello from Rust.");
-    grub::Command::register("rust_err", rust_err,
-				"Rust error", "Error out from Rust.");
-    grub::Command::register("rust_hexdump", rust_hexdump,
-				"Rust hexdump", "Hexdump a file from Rust.");
+pub extern "C" fn grub_mod_init(module: *const c_void) {
+    MODULE.init(module);
+    HELLO_CMD.set(&MODULE, grub::Command::register("rust_hello", rust_hello,
+				      "Rust hello", "Say hello from Rust."));
+    ERR_CMD.set(&MODULE, grub::Command::register("rust_err", rust_err,
+					"Rust error", "Error out from Rust."));
+    HEXDUMP_CMD.set(&MODULE, grub::Command::register("rust_hexdump", rust_hexdump,
+					    "Rust hexdump", "Hexdump a file from Rust."));
 }
 
 #[unsafe(no_mangle)]
 pub extern "C" fn grub_mod_fini() {
-    grub::Command::unregister_all();
+    MODULE.fini();
 }

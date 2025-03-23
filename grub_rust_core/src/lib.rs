@@ -8,20 +8,23 @@
 
 extern crate alloc;
 
+use alloc::boxed::Box;
 use alloc::vec::Vec;
 use alloc::vec;
 use alloc::string::String;
 use alloc::string::ToString;
+use alloc::ffi::CString;
+
 use core::alloc::{GlobalAlloc, Layout};
+use core::cell::Cell;
+use core::cell::RefCell;
 use core::ffi::c_char;
 use core::ffi::c_int;
 use core::ffi::c_void;
-use core::fmt::{self, Arguments, Write};
-
-use alloc::ffi::CString;
 use core::ffi::CStr;
-use core::panic::PanicInfo;
+use core::fmt::{self, Arguments, Write};
 use core::num::TryFromIntError;
+use core::panic::PanicInfo;
 
 #[unsafe(link_section = ".module_license")]
 pub static LICENSE: [u8; 15] = *b"LICENSE=GPLv3+\0";
@@ -363,11 +366,9 @@ pub struct Command {
     cmd: *mut GrubCommand,
 }
 
-static mut commands: Vec<Command> = vec![];
-
 impl Command {
     pub fn register(name: &str, cb: fn (argv: &[&str]) -> Result<(), GrubError>,
-		    summary: &str, description: &str) {
+		    summary: &str, description: &str) -> Self {
 	let mut ret = Command {
 	    name: CString::new(name).unwrap(),
 	    summary: CString::new(summary).unwrap(),
@@ -381,15 +382,15 @@ impl Command {
 						  ret.description.as_ptr(),
 						  0);
 	    (*ret.cmd).data = cb as *mut c_void;
-	    commands.push(ret);
 	}
+	return ret;
     }
+}
 
-    pub fn unregister_all() {
+impl Drop for Command {
+    fn drop(&mut self) {
 	unsafe {
-	    for cmd in commands.iter() {
-		grub_unregister_command(cmd.cmd);
-	    }
+	    grub_unregister_command(self.cmd);
 	}
     }
 }
@@ -469,4 +470,59 @@ impl Drop for File {
     fn drop(&mut self) {
 	unsafe { grub_file_close(self.file); }
     }
+}
+
+pub trait ModuleFini {
+    fn module_fini(&self);
+}
+
+pub struct ModuleCell<T> {
+    inner: Cell<Option<T>>,
+}
+
+pub struct ModuleRefHolder {
+    val: Cell<*const c_void>,
+    destructors: RefCell<Vec<Box<dyn ModuleFini>>>,
+}
+
+impl<T> ModuleCell<T> {
+    pub fn set(&'static self, dl: &ModuleRefHolder, value: T) {
+	self.inner.set(Some(value));
+	dl.destructors.borrow_mut().push(Box::new(self));
+    }
+
+    pub const fn new() -> Self {
+	Self{inner: Cell::new(None)}
+    }
+}
+
+impl<T> ModuleFini for &ModuleCell<T> {
+    fn module_fini(&self) {
+	self.inner.set(None);
+    }
+}
+
+// SAFETY: We're single-threaded with disabled interrupts
+unsafe impl<T> Sync for ModuleCell<T> {
+}
+
+impl ModuleRefHolder {
+    pub fn init(&self, value: *const c_void) {
+	self.val.set(value);
+    }
+
+    pub fn fini(&self) {
+	for d in self.destructors.borrow().iter() {
+	    d.module_fini();
+	}
+	self.destructors.borrow_mut().clear();
+    }
+
+    pub const fn new() -> Self {
+	Self{val: Cell::new(core::ptr::null()), destructors: RefCell::new(vec![])}
+    }
+}
+
+// SAFETY: We're single-threaded with disabled interrupts
+unsafe impl Sync for ModuleRefHolder {
 }
