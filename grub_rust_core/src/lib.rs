@@ -4,6 +4,7 @@
 #![feature(rustc_attrs)]
 #![feature(format_args_nl)]
 #![feature(inherent_str_constructors)]
+#![warn(static_mut_refs)]
 
 extern crate alloc;
 
@@ -22,14 +23,14 @@ use core::ffi::CStr;
 use core::panic::PanicInfo;
 use core::num::TryFromIntError;
 
-#[link_section = ".modname"]
-#[no_mangle]
+#[unsafe(link_section = ".modname")]
+#[unsafe(no_mangle)]
 pub static GRUB_MODNAME: [u8; 5] = *b"rust\0";
-#[link_section = ".module_license"]
-#[no_mangle]
+#[unsafe(link_section = ".module_license")]
+#[unsafe(no_mangle)]
 pub static GRUB_LICENSE: [u8; 15] = *b"LICENSE=GPLv3+\0";
 
-extern "C" {
+unsafe extern "C" {
     static grub_xputs: extern "C" fn(stri: *const c_char);
     fn grub_abort();
     fn grub_malloc(sz: usize) -> *mut u8;
@@ -88,7 +89,7 @@ macro_rules! eformat {
     }
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn strlen(s: *const c_char) -> usize {
     return unsafe { grub_strlen(s) }; 
 }
@@ -314,11 +315,11 @@ struct GrubAllocator;
 
 unsafe impl GlobalAlloc for GrubAllocator {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        return grub_malloc(layout.size());
+        return unsafe { grub_malloc(layout.size()) };
     }
 
     unsafe fn dealloc(&self, ptr: *mut u8, _layout: Layout) {
-        grub_free(ptr);
+        unsafe { grub_free(ptr) };
     }
 }
 

@@ -17,11 +17,11 @@ use grub::dprintln;
 use grub::println;
 use grub::eformat;
 
-#[link_section = ".modname"]
-#[no_mangle]
+#[unsafe(link_section = ".modname")]
+#[unsafe(no_mangle)]
 pub static GRUB_MODNAME_EXAMPLE: [u8; 11] = *b"rust_hello\0";
-#[link_section = ".module_license"]
-#[no_mangle]
+#[unsafe(link_section = ".module_license")]
+#[unsafe(no_mangle)]
 pub static GRUB_LICENSE_EXAMPLE: [u8; 15] = *b"LICENSE=GPLv3+\0";
 
 
@@ -121,7 +121,7 @@ fn rust_hexdump (args: &[&str]) -> Result<(), grub::GrubError> {
     return Ok(());
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn grub_mod_init() {
     grub::Command::register("rust_hello", rust_hello,
 				"Rust hello", "Say hello from Rust.");
@@ -131,7 +131,7 @@ pub extern "C" fn grub_mod_init() {
 				"Rust hexdump", "Hexdump a file from Rust.");
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn grub_mod_fini() {
     grub::Command::unregister_all();
 }
