@@ -33,7 +33,7 @@ pub static GRUB_LICENSE: [u8; 15] = *b"LICENSE=GPLv3+\0";
 unsafe extern "C" {
     static grub_xputs: extern "C" fn(stri: *const c_char);
     fn grub_abort();
-    fn grub_malloc(sz: usize) -> *mut u8;
+    fn grub_memalign(align: usize, sz: usize) -> *mut u8;
     fn grub_free(ptr: *mut u8);
     fn grub_register_command_prio (name: *const c_char,
 				   func: extern "C" fn (cmd: *const GrubCommand,
@@ -315,7 +315,7 @@ struct GrubAllocator;
 
 unsafe impl GlobalAlloc for GrubAllocator {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        return unsafe { grub_malloc(layout.size()) };
+        return unsafe { grub_memalign(layout.align(), layout.size()) };
     }
 
     unsafe fn dealloc(&self, ptr: *mut u8, _layout: Layout) {
