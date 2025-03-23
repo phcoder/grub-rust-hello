@@ -1,6 +1,5 @@
 #![no_std]
 #![no_main]
-#![feature(extern_types)]
 #![feature(format_args_nl)]
 #![feature(inherent_str_constructors)]
 
